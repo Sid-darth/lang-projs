@@ -81,11 +81,14 @@ def embed_store(llm_model="text-embedding-3-small") -> None:
     # define embedding model
 
     # load hash representations for exisiting embeddings if available
+    embedded_hashes = {}
     if os.path.exists(HASH_FILE):
         with open(HASH_FILE, "r") as file:
-            embedded_hashes = json.load(file)
-    else:
-        embedded_hashes = {}
+            embedded_json = json.load(file)
+            # get embedded hash dict from json
+            for doc_key in embedded_json:
+                for entry in embedded_json[doc_key]:
+                    embedded_hashes.update(entry)
     
     # load or create vector store
     vector_store = create_vector_store()
@@ -115,7 +118,11 @@ def embed_store(llm_model="text-embedding-3-small") -> None:
         vector_store.add_documents(splits)
 
         # add doc to hash object to track embedded docs
-        embedded_hashes[docname] = doc_hash
+        # have user specify key to categorize
+        doc_key = input(f"Enter key for {docname}").strip().lower()
+        if doc_key not in embedded_hashes:
+            embedded_hashes[doc_key] = []
+        embedded_hashes[doc_key].append({doc_key:doc_hash})
 
     # save updated vector store and update hash json
     vector_store.save_local(INDEX_DIR)
