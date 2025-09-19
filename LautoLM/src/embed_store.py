@@ -8,6 +8,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, csv_loader, JSONLoader
+from langchain.schema import Document
 # from langchain_docling import DoclingLoader
 import warnings
 
@@ -110,16 +111,25 @@ def embed_store(llm_model="text-embedding-3-small") -> None:
             continue
         
         print(f"Embedding file : {docname}")
+
+        # have user specify key to categorize
+        doc_key = input(f"Enter key for {docname}").strip().lower()
+
         
         # load and split into chunks
         splits = load_split(doc_path)
 
+        # attach metadata to each chunk
+        docs_with_metadata = [
+            Document(page_content=chunk.page_content, metadata={"doc_key": doc_key})
+            for chunk in splits
+        ]
+        
         # vector store
-        vector_store.add_documents(splits)
+        vector_store.add_documents(docs_with_metadata)
 
         # add doc to hash object to track embedded docs
-        # have user specify key to categorize
-        doc_key = input(f"Enter key for {docname}").strip().lower()
+        
         if doc_key not in embedded_hashes:
             embedded_hashes[doc_key] = []
         embedded_hashes[doc_key].append({doc_key:doc_hash})
@@ -127,7 +137,7 @@ def embed_store(llm_model="text-embedding-3-small") -> None:
     # save updated vector store and update hash json
     vector_store.save_local(INDEX_DIR)
     with open(HASH_FILE, "w") as hash_file:
-        json.dump(embedded_hashes, hash_file)
+        json.dump(embedded_hashes, hash_file, indent=2, ensure_ascii=False)
     
     print("Index updated successfully")
 
